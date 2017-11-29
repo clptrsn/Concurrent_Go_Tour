@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"io"
 	"golang.org/x/net/html"
+	"regexp"
+	"strings"
+	"time"
 )
 
 func getLinks(reader io.Reader) []string {
@@ -35,6 +38,8 @@ func getLinks(reader io.Reader) []string {
 	return links
 }
 
+var urlMaps map[string][]string
+
 
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
@@ -43,25 +48,61 @@ func Crawl(url string, depth int) {
 	// TODO: Don't fetch the same URL twice.
 	if depth <= 0 {
 		return
+	}	
+
+	urlRegex, _ := regexp.Compile(`(?P<Scheme>http(?:s|):\/\/)(?P<Path>.*)(?:\/|$)`)
+
+	isValidUrl := urlRegex.MatchString(url)
+	if isValidUrl == false {
+		return
 	}
+
+	match := urlRegex.FindStringSubmatch(url)
+	baseUrl := match[1] + match[2]
+
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer resp.Body.Close()
 	urls := getLinks(resp.Body)
+	resp.Body.Close()
 
-	// TODO: Add in the url base if the child url starts with /
-	fmt.Printf("found: %s with %d links\n", url, len(urls))
+	urlMaps[url] = urls
+
+	fmt.Printf("%*v found: %s with %d links\n", 4 * (maxDepth - depth), "", url, len(urls))
 
 	for _, u := range urls {
-		fmt.Printf("Exploring %s\n", u)
-		Crawl(u, depth-1)
+		if strings.HasPrefix(u, "//") {
+			u = "http:" + u
+		}
+
+		if strings.HasPrefix(u, "/") {
+			u = baseUrl + u
+		}
+
+		if urlRegex.MatchString(u) {
+
+			_, urlExists := urlMaps[u]
+			if urlExists == false {
+				fmt.Printf("%*v Exploring %s\n", 4 * (maxDepth - depth), "", u)
+				Crawl(u, depth-1)
+			} else {
+				fmt.Printf("%*v Saved %s\n", 4 * (maxDepth - depth), "", u)
+			}
+		}
 	}
 	return
 }
 
+var maxDepth int
+
 func main() {
-	Crawl("http://golang.org/", 1)
+	startTime := time.Now()
+	maxDepth = 3
+	urlMaps = make(map[string][]string)
+	Crawl("http://motherfuckingwebsite.com/", maxDepth)
+
+	now := time.Now()
+	fmt.Printf("TOTAL TIME: %d\n", now.Sub(startTime))
 }
