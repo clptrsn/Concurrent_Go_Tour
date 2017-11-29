@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"errors"
 )
 
 func getLinks(reader io.Reader) []string {
@@ -58,9 +59,14 @@ func Crawl(url string, depth int) {
 	urlResultChan := make(chan result)
 
 	fetch := func(url string, depth int) {
+		if depth <= 0 {
+			urlResultChan <- result{depth:0}
+			return
+		}
 
 		isValidUrl := urlRegex.MatchString(url)
 		if isValidUrl == false {
+			urlResultChan <- result{err: errors.New("Url Wrong Format") }
 			return
 		}
 
@@ -129,10 +135,10 @@ var maxDepth int
 func main() {
 	startTime := time.Now()
 
-	maxDepth = 3
+	maxDepth = 5
 	urlMaps = make(map[string]urlMapInner)
 	Crawl("http://motherfuckingwebsite.com/", maxDepth)
 
 	now := time.Now()
-	fmt.Printf("TOTAL TIME: %d\n", now.Sub(startTime))
+	fmt.Printf("TOTAL TIME: %f\n", now.Sub(startTime).Seconds())
 }

@@ -99,10 +99,10 @@ var maxDepth int
 
 func main() {
 	startTime := time.Now()
-	maxDepth = 3
+	maxDepth = 5
 	urlMaps = make(map[string][]string)
 	Crawl("http://motherfuckingwebsite.com/", maxDepth)
 
 	now := time.Now()
-	fmt.Printf("TOTAL TIME: %d\n", now.Sub(startTime))
+	fmt.Printf("TOTAL TIME: %f\n", now.Sub(startTime).Seconds())
 }
