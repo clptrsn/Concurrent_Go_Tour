@@ -44,35 +44,39 @@ var urlMaps map[string][]string
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
 func Crawl(url string, depth int) {
-	// TODO: Fetch URLs in parallel.
-	// TODO: Don't fetch the same URL twice.
 	if depth <= 0 {
 		return
 	}	
 
 	urlRegex, _ := regexp.Compile(`(?P<Scheme>http(?:s|):\/\/)(?P<Path>.*)(?:\/|$)`)
 
+	// Check if the url matches the regex above
 	isValidUrl := urlRegex.MatchString(url)
 	if isValidUrl == false {
 		return
 	}
 
+	// Extract the protocol and base url path
 	match := urlRegex.FindStringSubmatch(url)
 	baseUrl := match[1] + match[2]
 
+	// Get the webpage from the url
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	// Get the <a> element's href property from the page
 	urls := getLinks(resp.Body)
 	resp.Body.Close()
 
+	// Add the url to the global map
 	urlMaps[url] = urls
 
 	fmt.Printf("%*v found: %s with %d links\n", 4 * (maxDepth - depth), "", url, len(urls))
 
 	for _, u := range urls {
+		// If the url is relative, add in the neccessary prefixes to make them absolute
 		if strings.HasPrefix(u, "//") {
 			u = "http:" + u
 		}

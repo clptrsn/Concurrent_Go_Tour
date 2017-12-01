@@ -58,39 +58,52 @@ func Crawl(url string, depth int) {
 	urlRegex, _ := regexp.Compile(`(?P<Scheme>http(?:s|):\/\/)(?P<Path>.*)(?:\/|$)`)
 	urlResultChan := make(chan result)
 
+	// Function which will fetch the child urls. It will pass the result into the result channel
 	fetch := func(url string, depth int) {
 		if depth <= 0 {
+			// send a result with a depth of 0
 			urlResultChan <- result{depth:0}
 			return
 		}
 
+		// checks if the url matches the regex above
 		isValidUrl := urlRegex.MatchString(url)
 		if isValidUrl == false {
+			// send a result with an error
 			urlResultChan <- result{err: errors.New("Url Wrong Format") }
 			return
 		}
 
+		// Extract the protocol and base url path
 		match := urlRegex.FindStringSubmatch(url)
 		baseUrl := match[1] + match[2]
 
+		// Get the webpage from the url
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Println(err)
 			urlResultChan <- result{err: err}
 			return
 		}
+		// Get the <a> element's href property from the page
 		urls := getLinks(resp.Body)
 		resp.Body.Close()
 
 		fmt.Printf("%*v found: %s with %d links\n", 4 * (maxDepth - depth), "", url, len(urls))
+		
+		// Add the url to the global map
 		urlMaps[url] = urlMapInner{finished:true, urlChildren: urls}
+		
+		// Send the result to the channel
 		urlResultChan <- result{baseUrl: baseUrl, url: url, urls: urls, depth: depth}
 	}
 
 	urlMaps[url] = urlMapInner{finished: false, urlChildren: []string{}}
 	go fetch(url, depth)
 
+	// For each url we find, we will increase urlsProcessing
 	for urlsProcessing := 1; urlsProcessing > 0; urlsProcessing-- {
+		// Get a result from the results channel
 		result := <-urlResultChan
 
 		if result.err != nil {
